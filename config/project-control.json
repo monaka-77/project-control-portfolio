@@ -1,0 +1,6 @@
+{
+  "data_file": "data/tasks.json",
+  "default_status": "inbox",
+  "default_priority": "medium",
+  "date_format": "%Y-%m-%d"
+}
