@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProjectControl Dashboard</title>
+<style>:root {
+  color-scheme: light dark;
+  --bg: #f7f7f4;
+  --fg: #202124;
+  --muted: #5f6368;
+  --panel: #ffffff;
+  --line: #d6d9d6;
+  --accent: #176f63;
+  --warn: #a64b00;
+  --danger: #b3261e;
+  --review: #7651a8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181a1b;
+    --fg: #f1f3f4;
+    --muted: #bdc1c6;
+    --panel: #222527;
+    --line: #3c4043;
+    --accent: #69c5b8;
+    --warn: #ffb36c;
+    --danger: #ff8a80;
+    --review: #c7a7f2;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+.page { max-width: 1180px; margin: 0 auto; padding: 24px; }
+header, section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+h1, h2 { margin: 0 0 14px; line-height: 1.2; }
+.meta-grid, .cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.meta-grid div, .card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+.meta-grid span, .card span, .note, .empty, .gantt-label span { color: var(--muted); font-size: 0.88rem; }
+.meta-grid strong, .card strong { display: block; font-size: 1.35rem; margin-top: 4px; overflow-wrap: anywhere; }
+.table-wrap { overflow-x: auto; }
+.task-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.filter-field {
+  display: grid;
+  gap: 4px;
+}
+.filter-field-wide {
+  grid-column: span 2;
+}
+.filter-field label,
+.filter-check {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.filter-field input,
+.filter-field select,
+.filter-reset {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--panel);
+  color: var(--fg);
+  font: inherit;
+}
+.filter-field input:focus,
+.filter-field select:focus,
+.filter-check input:focus-visible,
+.filter-reset:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.filter-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+}
+.filter-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+}
+.filter-reset {
+  cursor: pointer;
+}
+.filter-count,
+.filter-empty {
+  margin: 0;
+  align-self: center;
+  color: var(--muted);
+}
+.filter-empty {
+  grid-column: 1 / -1;
+  color: var(--danger);
+}
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+.task-table { min-width: 980px; }
+th, td { border-bottom: 1px solid var(--line); padding: 9px; text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 0.86rem; white-space: nowrap; }
+thead th { background: var(--panel); }
+.col-id { width: 7.5rem; }
+.col-priority { width: 6rem; }
+.col-status { width: 7.5rem; }
+.col-project { width: 9rem; }
+.col-due { width: 7rem; }
+.col-title { width: 32%; }
+.col-tags { width: 18%; }
+.col-due-state { width: 7rem; }
+.cell-id,
+.cell-priority,
+.cell-status,
+.cell-project,
+.cell-due,
+.cell-due-state {
+  white-space: nowrap;
+}
+.cell-id { font-variant-numeric: tabular-nums; }
+.cell-title {
+  min-width: 16rem;
+  overflow-wrap: anywhere;
+}
+.cell-tags {
+  max-width: 16rem;
+  overflow-wrap: anywhere;
+}
+.badge {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.priority-urgent,
+.status-blocked,
+.due-state-overdue {
+  color: var(--danger);
+  background: rgba(179, 38, 30, 0.10);
+}
+.priority-high,
+.due-state-today,
+.due-state-soon {
+  color: var(--warn);
+  background: rgba(166, 75, 0, 0.10);
+}
+.priority-medium,
+.status-planned,
+.status-in-progress,
+.status-done,
+.due-state-scheduled,
+.due-state-completed {
+  color: var(--accent);
+  background: rgba(23, 111, 99, 0.10);
+}
+.status-review {
+  color: var(--review);
+  background: rgba(118, 81, 168, 0.10);
+}
+.priority-low,
+.status-inbox,
+.status-cancelled,
+.due-state-none,
+.due-state-excluded {
+  color: var(--muted);
+  background: rgba(95, 99, 104, 0.10);
+}
+@media (prefers-color-scheme: dark) {
+  .priority-urgent,
+  .status-blocked,
+  .due-state-overdue { background: rgba(255, 138, 128, 0.14); }
+  .priority-high,
+  .due-state-today,
+  .due-state-soon { background: rgba(255, 179, 108, 0.14); }
+  .priority-medium,
+  .status-planned,
+  .status-in-progress,
+  .status-done,
+  .due-state-scheduled,
+  .due-state-completed { background: rgba(105, 197, 184, 0.14); }
+  .status-review { background: rgba(199, 167, 242, 0.14); }
+  .priority-low,
+  .status-inbox,
+  .status-cancelled,
+  .due-state-none,
+  .due-state-excluded { background: rgba(189, 193, 198, 0.12); }
+}
+.progress {
+  display: block;
+  height: 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.progress span { display: block; height: 100%; background: var(--accent); }
+.progress-label { font-variant-numeric: tabular-nums; }
+.gantt-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.86rem;
+  margin: 12px 0 8px;
+}
+.gantt-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.gantt-track {
+  position: relative;
+  min-height: 22px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.gantt-bar {
+  position: absolute;
+  top: 5px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 999px;
+}
+.gantt-due {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-left: 2px solid var(--danger);
+}
+@media (max-width: 720px) {
+  .page { padding: 12px; }
+  .filter-field-wide { grid-column: 1 / -1; }
+  .gantt-row { grid-template-columns: 1fr; }
+  table { min-width: 680px; }
+  .task-table { min-width: 860px; }
+}
+@media print {
+  body { background: #fff; color: #000; }
+  header, section { break-inside: avoid; border-color: #999; }
+  .page { max-width: none; padding: 0; }
+  .task-filters,
+  .filter-count,
+  .filter-empty,
+  .filter-reset { display: none; }
+  .table-wrap { overflow: visible; }
+  .task-table { min-width: 0; }
+}</style>
+</head>
+<body>
+<main class="page">
+<header>
+<h1>ProjectControl Dashboard</h1>
+<div class="meta-grid">
+<div><span>生成日時</span><strong>2026年8月23日 15:32 JST</strong></div>
+<div><span>絞り込み対象プロジェクト</span><strong>すべて</strong></div>
+<div><span>対象タスク件数</span><strong>3</strong></div>
+<div><span>期限間近</span><strong>3日以内</strong></div>
+</div>
+</header>
+<section><h2>サマリー</h2><div class="cards"><article class="card"><span>全件数</span><strong>3</strong></article><article class="card"><span>アクティブ</span><strong>2</strong></article><article class="card"><span>完了</span><strong>1</strong></article><article class="card"><span>アーカイブ</span><strong>0</strong></article><article class="card"><span>期限切れ</span><strong>0</strong></article><article class="card"><span>今日が期限</span><strong>0</strong></article><article class="card"><span>期限間近</span><strong>0</strong></article><article class="card"><span>ブロック</span><strong>0</strong></article><article class="card"><span>レビュー</span><strong>0</strong></article><article class="card"><span>urgent / high</span><strong>0</strong></article><article class="card"><span>期限なしアクティブ</span><strong>1</strong></article></div></section>
+<section><h2>プロジェクト別進捗</h2><div class="table-wrap"><table><thead><tr><th>プロジェクト名</th><th>対象件数</th><th>未着手</th><th>進行中</th><th>ブロック</th><th>レビュー</th><th>完了</th><th>期限切れ</th><th>完了率</th></tr></thead><tbody><tr><th>SampleProject</th><td>3</td><td>1</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td><span class="progress-label">33.3%</span><span class="progress"><span style="width: 33.3%"></span></span></td></tr></tbody></table></div></section>
+<section><h2>次に見るタスク</h2><p class="empty">対象タスクはありません。</p></section>
+<section><h2>タスク一覧</h2><form class="task-filters" data-dashboard-filters><div class="filter-field filter-field-wide"><label for="task-filter-search">フリーワード</label><input id="task-filter-search" name="search" type="search" autocomplete="off" data-filter-search></div><div class="filter-field"><label for="task-filter-project">プロジェクト</label><select id="task-filter-project" name="project" data-filter-project><option value="">すべて</option><option value="SampleProject">SampleProject</option></select></div><div class="filter-field"><label for="task-filter-status">ステータス</label><select id="task-filter-status" name="status" data-filter-status><option value="">すべて</option><option value="inbox">inbox</option><option value="planned">planned</option><option value="in_progress">in_progress</option><option value="blocked">blocked</option><option value="review">review</option><option value="done">done</option><option value="cancelled">cancelled</option></select></div><div class="filter-field"><label for="task-filter-priority">優先度</label><select id="task-filter-priority" name="priority" data-filter-priority><option value="">すべて</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="urgent">urgent</option></select></div><div class="filter-field"><label for="task-filter-due-state">期限状態</label><select id="task-filter-due-state" name="due_state" data-filter-due-state><option value="">すべて</option><option value="予定">予定</option><option value="期限なし">期限なし</option><option value="完了済み">完了済み</option></select></div><label class="filter-check" for="task-filter-completed"><input id="task-filter-completed" name="show_completed" type="checkbox" data-filter-completed><span>完了済みを表示</span></label><button class="filter-reset" type="button" data-filter-reset>解除</button><p class="filter-count" aria-live="polite" data-filter-count>表示件数: 3 / 3</p><p class="filter-empty" hidden data-filter-empty>条件に一致するタスクはありません。</p></form><div class="table-wrap"><table class="task-table"><colgroup><col class="col-id"><col class="col-priority"><col class="col-status"><col class="col-project"><col class="col-due"><col class="col-title"><col class="col-tags"><col class="col-due-state"></colgroup><thead><tr><th class="col-id" scope="col">ID</th><th class="col-priority" scope="col">優先度</th><th class="col-status" scope="col">ステータス</th><th class="col-project" scope="col">プロジェクト</th><th class="col-due" scope="col">期限</th><th class="col-title" scope="col">タイトル</th><th class="col-tags" scope="col">タグ</th><th class="col-due-state" scope="col">期限状態</th></tr></thead><tbody><tr data-dashboard-task-row data-project="SampleProject" data-status="done" data-priority="high" data-due-state="完了済み" data-completed="true" data-search="0e0ee1b0-3c7d-4b15-a7a9-6e657b29f10d 仕様を確認する SampleProject planning done high 2026-08-18 完了済み"><td class="cell-id" title="0e0ee1b0-3c7d-4b15-a7a9-6e657b29f10d">0e0ee1b0…</td><td class="cell-priority"><span class="badge priority-badge priority-high">high</span></td><td class="cell-status"><span class="badge status-badge status-done">done</span></td><td class="cell-project">SampleProject</td><td class="cell-due">2026-08-18</td><td class="cell-title">仕様を確認する</td><td class="cell-tags">planning</td><td class="cell-due-state"><span class="badge due-state-badge due-state-completed">完了済み</span></td></tr><tr data-dashboard-task-row data-project="SampleProject" data-status="in_progress" data-priority="medium" data-due-state="予定" data-completed="false" data-search="26d4c379-d153-4751-8cfe-b5f54d5d9545 ダッシュボードを確認する SampleProject dashboard review in_progress medium 2026-08-27 予定"><td class="cell-id" title="26d4c379-d153-4751-8cfe-b5f54d5d9545">26d4c379…</td><td class="cell-priority"><span class="badge priority-badge priority-medium">medium</span></td><td class="cell-status"><span class="badge status-badge status-in-progress">in_progress</span></td><td class="cell-project">SampleProject</td><td class="cell-due">2026-08-27</td><td class="cell-title">ダッシュボードを確認する</td><td class="cell-tags">dashboard, review</td><td class="cell-due-state"><span class="badge due-state-badge">予定</span></td></tr><tr data-dashboard-task-row data-project="SampleProject" data-status="planned" data-priority="low" data-due-state="期限なし" data-completed="false" data-search="bf93781b-5073-4452-b07c-39d6bd15b7b0 改善案を整理する SampleProject improvement planned low  期限なし"><td class="cell-id" title="bf93781b-5073-4452-b07c-39d6bd15b7b0">bf93781b…</td><td class="cell-priority"><span class="badge priority-badge priority-low">low</span></td><td class="cell-status"><span class="badge status-badge status-planned">planned</span></td><td class="cell-project">SampleProject</td><td class="cell-due">-</td><td class="cell-title">改善案を整理する</td><td class="cell-tags">improvement</td><td class="cell-due-state"><span class="badge due-state-badge due-state-none">期限なし</span></td></tr></tbody></table></div></section>
+<section><h2>簡易ガント表示</h2><p class="note">簡易表示です。開始日を持たないため、created_at から due_date までを参考表示しており、正式な工程期間ではありません。</p><div class="gantt-scale"><span>2026-08-16</span><span>今日 2026-08-23</span><span>2026-09-22</span></div><div class="gantt"><div class="gantt-row"><div class="gantt-label">SampleProject / ダッシュボードを確認する<br><span>2026-08-27 範囲内</span></div><div class="gantt-track"><span class="gantt-bar" style="left: 10.53%; width: 21.05%"></span><span class="gantt-due" style="left: 28.95%"></span></div></div></div></section>
+</main>
+<script>(function () {
+  var filters = document.querySelector("[data-dashboard-filters]");
+  if (!filters) {
+    return;
+  }
+  var rows = Array.prototype.slice.call(document.querySelectorAll("[data-dashboard-task-row]"));
+  if (!rows.length) {
+    return;
+  }
+
+  var search = filters.querySelector("[data-filter-search]");
+  var project = filters.querySelector("[data-filter-project]");
+  var status = filters.querySelector("[data-filter-status]");
+  var priority = filters.querySelector("[data-filter-priority]");
+  var dueState = filters.querySelector("[data-filter-due-state]");
+  var completed = filters.querySelector("[data-filter-completed]");
+  var reset = filters.querySelector("[data-filter-reset]");
+  var count = filters.querySelector("[data-filter-count]");
+  var empty = filters.querySelector("[data-filter-empty]");
+  if (!search || !project || !status || !priority || !dueState || !completed || !reset || !count || !empty) {
+    return;
+  }
+
+  function normalized(value) {
+    return String(value || "").trim().toLocaleLowerCase();
+  }
+
+  function matches(row, query, selectedProject, selectedStatus, selectedPriority, selectedDueState, showCompleted) {
+    if (!showCompleted && row.dataset.completed === "true") {
+      return false;
+    }
+    if (selectedProject && row.dataset.project !== selectedProject) {
+      return false;
+    }
+    if (selectedStatus && row.dataset.status !== selectedStatus) {
+      return false;
+    }
+    if (selectedPriority && row.dataset.priority !== selectedPriority) {
+      return false;
+    }
+    if (selectedDueState && row.dataset.dueState !== selectedDueState) {
+      return false;
+    }
+    if (query && normalized(row.dataset.search).indexOf(query) === -1) {
+      return false;
+    }
+    return true;
+  }
+
+  function applyFilters() {
+    var query = normalized(search.value);
+    var selectedProject = project.value;
+    var selectedStatus = status.value;
+    var selectedPriority = priority.value;
+    var selectedDueState = dueState.value;
+    var showCompleted = completed.checked;
+    var visible = 0;
+
+    rows.forEach(function (row) {
+      var visibleRow = matches(row, query, selectedProject, selectedStatus, selectedPriority, selectedDueState, showCompleted);
+      row.hidden = !visibleRow;
+      if (visibleRow) {
+        visible += 1;
+      }
+    });
+
+    count.textContent = "表示件数: " + visible + " / " + rows.length;
+    empty.hidden = visible !== 0;
+  }
+
+  [search, project, status, priority, dueState, completed].forEach(function (control) {
+    control.addEventListener(control === search ? "input" : "change", applyFilters);
+  });
+
+  reset.addEventListener("click", function () {
+    search.value = "";
+    project.value = "";
+    status.value = "";
+    priority.value = "";
+    dueState.value = "";
+    completed.checked = false;
+    applyFilters();
+  });
+
+  applyFilters();
+}());</script>
+</body>
+</html>
