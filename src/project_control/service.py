@@ -446,7 +446,9 @@ class ProjectControlService:
     def _resolve_export_path(self, output: str | None) -> Path:
         if output is None:
             return self.repo_root / "exports" / f"tasks-{self._timestamp_slug()}.csv"
-        candidate = Path(output)
+        # Treat both slash styles as path separators so a traversal attempt is
+        # rejected consistently on Windows and POSIX hosts.
+        candidate = Path(output.replace("\\", "/"))
         if candidate.is_absolute():
             raise ServiceError("Absolute output paths are not allowed.")
         resolved = (self.repo_root / candidate).resolve()
