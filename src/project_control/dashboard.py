@@ -93,7 +93,9 @@ def render_dashboard_html(
 
 def save_dashboard_html(repo_root: Path | str, html: str, output: str | None = None) -> Path:
     root = Path(repo_root).resolve()
-    candidate = Path(output) if output is not None else DEFAULT_DASHBOARD_OUTPUT
+    # Treat both slash styles as path separators so a traversal attempt is
+    # rejected consistently on Windows and POSIX hosts.
+    candidate = Path(output.replace("\\", "/")) if output is not None else DEFAULT_DASHBOARD_OUTPUT
     if candidate.is_absolute():
         raise DashboardError("Absolute output paths are not allowed.")
     destination = (root / candidate).resolve()
