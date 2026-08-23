@@ -35,4 +35,5 @@ exports/*.csv
 exports/*.tmp
 reports/*.html
 reports/*.tmp
+!reports/.gitkeep
 *.log
