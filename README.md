@@ -67,6 +67,10 @@ python -m project_control dashboard-html --open
 Copy-Item examples\sample_tasks.json data\tasks.json
 ```
 
+## 公開デモ
+
+架空のサンプルタスクから生成した、ブラウザで開ける[静的HTMLダッシュボード](docs/demo-dashboard.html)を公開しています。フィルタリング、プロジェクト別進捗、期限状態、簡易ガント表示を確認できます。
+
 ## テスト
 
 ```powershell
