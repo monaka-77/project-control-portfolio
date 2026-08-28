@@ -12,6 +12,7 @@ from .models import Task, TaskPriority, TaskStatus, utc_now_iso
 from .repository import JsonTaskRepository, RepositoryError
 
 
+# 優先度を画面表示・一覧表示で一貫して並べるためのソート順位。
 PRIORITY_ORDER = {
     TaskPriority.URGENT: 0,
     TaskPriority.HIGH: 1,
@@ -19,15 +20,18 @@ PRIORITY_ORDER = {
     TaskPriority.LOW: 3,
 }
 
+# 完了・取消は「現在対応中のタスク」から除外するため、共通集合として定義する。
 DONE_LIKE_STATUSES = {TaskStatus.DONE, TaskStatus.CANCELLED}
 
 
 class ServiceError(ValueError):
-    """Raised when a user-facing operation is invalid."""
+    """利用者の操作内容や業務ルールに問題がある場合に送出する例外。"""
 
 
 @dataclass(frozen=True)
 class ProgressEntry:
+    """プロジェクト別進捗を表示するための集計結果。"""
+
     project: str
     total: int
     todo: int
@@ -41,6 +45,8 @@ class ProgressEntry:
 
 @dataclass(frozen=True)
 class DashboardProject:
+    """ダッシュボードに表示するプロジェクト単位の集計結果。"""
+
     project: str
     total: int
     active: int
@@ -58,6 +64,8 @@ class DashboardProject:
 
 @dataclass(frozen=True)
 class DashboardData:
+    """ダッシュボード生成に必要な全体集計と表示対象Taskをまとめたデータ。"""
+
     total: int
     active: int
     completed: int
@@ -75,6 +83,12 @@ class DashboardData:
 
 
 class ProjectControlService:
+    """CLIとRepositoryの間で、Taskに関する業務ルールを担当するService。
+
+    CLI側へ永続化や状態遷移の詳細を漏らさず、入力検証・状態変更・集計・
+    バックアップ・CSV出力などのユースケースをここへ集約する。
+    """
+
     def __init__(
         self,
         repository: JsonTaskRepository,
@@ -87,6 +101,7 @@ class ProjectControlService:
         self.repository = repository
         self.repo_root = Path(repo_root).resolve() if repo_root is not None else repository.path.parent.parent.resolve()
         self.date_format = date_format
+        # 時刻取得を差し替え可能にし、テスト結果を実行時刻へ依存させない。
         self.now_provider = now_provider or utc_now_iso
         self.today_provider = today_provider or date.today
 
@@ -101,6 +116,8 @@ class ProjectControlService:
         due_date: str | None = None,
         tags: list[str] | None = None,
     ) -> Task:
+        """入力を検証してTaskを追加し、Repositoryへ保存する。"""
+
         self._validate_due_date(due_date)
         tasks = self.repository.load()
         task = Task(
@@ -121,6 +138,8 @@ class ProjectControlService:
         return task
 
     def get_task(self, task_id: str) -> Task:
+        """UUIDを検証した上でTaskを取得し、存在しなければ明示的に失敗する。"""
+
         task_id = Task._validate_id(task_id)
         task = self.repository.find_by_id(task_id)
         if task is None:
@@ -141,6 +160,8 @@ class ProjectControlService:
         tags: list[str] | None = None,
         clear_tags: bool = False,
     ) -> Task:
+        """指定された項目だけを更新し、Task全体を再検証してから保存する。"""
+
         if due_date is not None and clear_due_date:
             raise ServiceError("--due-date and --clear-due-date cannot be used together.")
         if tags is not None and clear_tags:
@@ -177,11 +198,14 @@ class ProjectControlService:
             self._apply_status(task, TaskStatus(status), allow_same=True)
 
         task.updated_at = self.now_provider()
+        # 変更後のTaskを再生成して、保存前に型・日時・Enum等の整合性を再確認する。
         Task.from_dict(task.to_dict())
         self.repository.save(tasks)
         return task
 
     def change_status(self, task_id: str, new_status: TaskStatus | str) -> tuple[Task, TaskStatus]:
+        """Taskの状態を変更し、変更前の状態も呼び出し元へ返す。"""
+
         tasks = self.repository.load()
         task = self._find_task_in_list(tasks, task_id)
         self._ensure_not_archived(task)
@@ -195,6 +219,8 @@ class ProjectControlService:
         return task, old_status
 
     def complete_task(self, task_id: str) -> Task:
+        """Taskを完了状態へ変更し、完了日時を設定して保存する。"""
+
         tasks = self.repository.load()
         task = self._find_task_in_list(tasks, task_id)
         self._ensure_not_archived(task)
@@ -206,6 +232,8 @@ class ProjectControlService:
         return task
 
     def archive_task(self, task_id: str) -> Task:
+        """Taskを物理削除せず、アーカイブ日時を設定して履歴として残す。"""
+
         tasks = self.repository.load()
         task = self._find_task_in_list(tasks, task_id)
         if task.archived_at is not None:
@@ -229,6 +257,8 @@ class ProjectControlService:
         completed: bool = False,
         active: bool = False,
     ) -> list[Task]:
+        """複数条件をANDで適用し、通常表示対象のTaskを優先度・期限順で返す。"""
+
         if overdue and due_soon_days is not None:
             raise ServiceError("--overdue and --due-soon cannot be used together.")
         if completed and active:
@@ -267,6 +297,8 @@ class ProjectControlService:
         priority: TaskPriority | str | None = None,
         tag: str | None = None,
     ) -> list[Task]:
+        """アーカイブ済みTaskだけを抽出し、更新の新しい順で返す。"""
+
         tasks = [task for task in self.repository.load() if task.archived_at is not None]
         if project is not None:
             tasks = [task for task in tasks if task.project == project]
@@ -285,6 +317,8 @@ class ProjectControlService:
         )
 
     def get_due_state(self, task: Task, *, today: date | None = None) -> str:
+        """Taskの状態と期限から、画面表示用の期限状態を判定する。"""
+
         base_today = today or self.today_provider()
         if task.status == TaskStatus.DONE:
             return "完了済み"
@@ -302,6 +336,8 @@ class ProjectControlService:
         return "予定"
 
     def get_progress(self, *, project: str | None = None) -> list[ProgressEntry]:
+        """アーカイブを除外し、プロジェクトごとの進捗率と状態件数を集計する。"""
+
         tasks = [task for task in self.repository.load() if task.archived_at is None]
         if project is not None:
             tasks = [task for task in tasks if task.project == project]
@@ -312,6 +348,7 @@ class ProjectControlService:
         entries: list[ProgressEntry] = []
         for project_name in sorted(grouped):
             group = grouped[project_name]
+            # CANCELLEDは「完了率」の母数へ含めず、実際に完了したTaskの進捗を表す。
             denominator = sum(1 for task in group if task.status != TaskStatus.CANCELLED)
             done_count = sum(1 for task in group if task.status == TaskStatus.DONE)
             entries.append(
@@ -330,6 +367,8 @@ class ProjectControlService:
         return entries
 
     def summary(self) -> dict[str, Any]:
+        """全Taskを対象に、CLIサマリー表示用の件数を集計する。"""
+
         tasks = self.repository.load()
         active_tasks = [task for task in tasks if task.archived_at is None and task.status not in DONE_LIKE_STATUSES]
         visible_tasks = [task for task in tasks if task.archived_at is None]
@@ -352,6 +391,8 @@ class ProjectControlService:
         due_soon_days: int = 3,
         limit: int = 5,
     ) -> DashboardData:
+        """ダッシュボード表示用に、全体・プロジェクト別・注目Taskを集計する。"""
+
         if due_soon_days < 0:
             raise ServiceError("--due-soon must be 0 or greater.")
         if limit < 0:
@@ -391,6 +432,8 @@ class ProjectControlService:
         )
 
     def create_backup(self) -> tuple[Path, int]:
+        """現在のTaskデータを、上書きを避けたJSONバックアップとして保存する。"""
+
         backup_dir = self.repo_root / "backups"
         timestamp = self._timestamp_slug()
         destination = backup_dir / f"tasks-{timestamp}.json"
@@ -402,6 +445,8 @@ class ProjectControlService:
         output: str | None = None,
         include_archived: bool = False,
     ) -> tuple[Path, int]:
+        """TaskをUTF-8 BOM付きCSVへ安全に書き出し、保存先と件数を返す。"""
+
         tasks = self.list_tasks(include_archived=include_archived)
         destination = self._resolve_export_path(output)
         final_path = _next_available_path(destination)
@@ -446,8 +491,7 @@ class ProjectControlService:
     def _resolve_export_path(self, output: str | None) -> Path:
         if output is None:
             return self.repo_root / "exports" / f"tasks-{self._timestamp_slug()}.csv"
-        # Treat both slash styles as path separators so a traversal attempt is
-        # rejected consistently on Windows and POSIX hosts.
+        # Windows/POSIXの区切り文字を統一し、どちらの形式の `../` でも外部出力を拒否する。
         candidate = Path(output.replace("\\", "/"))
         if candidate.is_absolute():
             raise ServiceError("Absolute output paths are not allowed.")
@@ -567,6 +611,8 @@ class ProjectControlService:
 
 
 def _task_sort_key(task: Task) -> tuple[int, date, str]:
+    """優先度→期限→作成日時の順で一覧表示を安定させるソートキーを返す。"""
+
     due = date.max
     if task.due_date:
         try:
@@ -577,6 +623,8 @@ def _task_sort_key(task: Task) -> tuple[int, date, str]:
 
 
 def _next_available_path(path: Path) -> Path:
+    """既存ファイルを上書きしない、未使用の連番付きパスを返す。"""
+
     if not path.exists():
         return path
     counter = 1
@@ -588,6 +636,8 @@ def _next_available_path(path: Path) -> Path:
 
 
 def _write_csv_atomically(path: Path, rows: list[list[str]]) -> None:
+    """CSVを一時ファイルへ完全に書いてから置換し、途中失敗による破損を防ぐ。"""
+
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.parent / f".{path.name}.tmp"
     try:
@@ -604,4 +654,5 @@ def _write_csv_atomically(path: Path, rows: list[list[str]]) -> None:
             if temp_path.exists():
                 temp_path.unlink()
         except OSError:
+            # CSV出力本体の成否を、一時ファイル削除エラーで上書きしない。
             pass
