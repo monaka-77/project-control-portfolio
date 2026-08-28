@@ -2,20 +2,25 @@
 
 [![CI](https://github.com/monaka-77/project-control-portfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/monaka-77/project-control-portfolio/actions/workflows/ci.yml)
 
+[▶ 静的デモを見る（GitHub Pages）](https://monaka-77.github.io/project-control-portfolio/)
+
 複数プロジェクトのタスクを、ローカル環境で安全に一元管理するための Python 製CLIツールです。
 
 > このリポジトリは就職活動向けの公開版です。実運用のタスク、クライアント情報、個人パス、認証情報、バックアップは含めていません。サンプルデータはすべて架空です。
+>
+> GitHub Pagesで公開する画面は、架空データから生成した**静的デモ**です。現時点ではブラウザからタスクを追加・編集・設定する製品版Webアプリではありません。
 
 ## 採用担当者・レビュー担当者の方へ
 
 3分程度で確認いただく場合は、次の順番がおすすめです。
 
-1. **このREADME**：目的、設計方針、公開範囲
-2. **[service.py](src/project_control/service.py)**：ユースケースと業務ロジック
-3. **[repository.py](src/project_control/repository.py)**：JSON永続化と安全なファイル更新
-4. **[models.py](src/project_control/models.py)**：入力値・状態の検証
-5. **[tests/](tests/)**：正常系だけでなく異常系・境界条件・副作用も含むテスト
-6. **[GitHub Actions](https://github.com/monaka-77/project-control-portfolio/actions/workflows/ci.yml)**：Python 3.13で構文検査とユニットテストを自動実行
+1. **[静的デモ](https://monaka-77.github.io/project-control-portfolio/)**：画面イメージと可視化の確認
+2. **このREADME**：目的、設計方針、公開範囲
+3. **[service.py](src/project_control/service.py)**：ユースケースと業務ロジック
+4. **[repository.py](src/project_control/repository.py)**：JSON永続化と安全なファイル更新
+5. **[models.py](src/project_control/models.py)**：入力値・状態の検証
+6. **[tests/](tests/)**：正常系だけでなく異常系・境界条件・副作用も含むテスト
+7. **[GitHub Actions](https://github.com/monaka-77/project-control-portfolio/actions/workflows/ci.yml)**：Python 3.13で構文検査とユニットテストを自動実行
 
 ### 現在の検証状況
 
@@ -115,7 +120,9 @@ Copy-Item examples\sample_tasks.json data\tasks.json
 
 架空のサンプルタスクから生成した、ブラウザで開ける[静的HTMLダッシュボード](docs/demo-dashboard.html)を公開しています。フィルタリング、プロジェクト別進捗、期限状態、簡易ガント表示を確認できます。
 
-> GitHub上でHTMLファイルをクリックした場合はソース表示になります。インタラクティブな表示を確認する場合は、リポジトリをCloneまたはDownload ZIPで取得し、`docs/demo-dashboard.html` をブラウザで開いてください。GitHub Pagesによるワンクリック表示は今後の改善候補です。
+**GitHub Pages：** https://monaka-77.github.io/project-control-portfolio/
+
+> GitHub Pagesは採用・レビュー向けの静的表示です。ProjectControl本体のデータを編集したり、設定を変更したりするWebアプリではありません。ブラウザから操作できる製品UIは今後の別フェーズで実装予定です。
 
 ## テスト
 
